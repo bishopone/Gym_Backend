@@ -5,7 +5,7 @@ require("dotenv").config();
 
 exports.register = async (req, res) => {
   try {
-    const newUser = await userService.registerUser(req.body, req.file, req.user);
+    const newUser = await userService.registerUser(req.body, req.files?.profileImage, req.user);
     res.status(201).json(newUser);
   } catch (error) {
     console.log(error)
@@ -15,10 +15,12 @@ exports.register = async (req, res) => {
 
 exports.edit = async (req, res) => {
   try {
+    console.log(req.files)
+
     const updatedUser = await userService.updateUser(
       parseInt(req.params.id),
       req.body,
-      req.file
+      req.files?.profileImage
     );
 
     res.json(updatedUser);
@@ -51,7 +53,7 @@ exports.getUserById = async (req, res) => {
 
 exports.editProfilePicture = async (req, res) => {
   try {
-    await userService.saveProfilePicture(req.user.id, req.file);
+    await userService.saveProfileImage(req.user.id, req.files?.profileImage);
     res.json({ message: "Profile picture updated successfully" });
   } catch (error) {
     res.status(400).json({ message: error.message });

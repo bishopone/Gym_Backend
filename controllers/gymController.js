@@ -2,7 +2,7 @@ const gymService = require('../services/gymService');
 
 const createGym = async (req, res) => {
   try {
-    const gym = await gymService.createGym(req.body, req.file);
+    const gym = await gymService.createGym(req.body, req.files?.logo);
     res.status(201).json(gym);
   } catch (error) {
     console.error('Error creating gym:', error);
@@ -12,7 +12,7 @@ const createGym = async (req, res) => {
 
 const editGym = async (req, res) => {
   try {
-    const gym = await gymService.editGym(req.body, req.file, req.params.id);
+    const gym = await gymService.editGym(req.body, req.files?.logo, req.params.id);
     res.status(201).json(gym);
   } catch (error) {
     console.error('Error creating gym:', error);

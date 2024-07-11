@@ -12,10 +12,10 @@ const createGym = async (gymData, file) => {
     const uploadDir = path.join(__dirname, "../uploads/logos");
     await fs.mkdir(uploadDir, { recursive: true });
 
-    const imagePath = path.join(uploadDir, `${newGym.id}-${file.originalname}`);
-    await fs.writeFile(imagePath, file.buffer);
+    const imagePath = path.join(uploadDir, `${newGym.id}-${file.name}`);
+    await fs.writeFile(imagePath, file.data);
 
-    const gymLogoUrl = `/uploads/logos/${newGym.id}-${file.originalname}`;
+    const gymLogoUrl = `/uploads/logos/${newGym.id}-${file.name}`;
     await prisma.gym.update({
       where: { id: newGym.id },
       data: { logo: gymLogoUrl },
@@ -39,10 +39,10 @@ const editGym = async (gymData, file, id) => {
     const uploadDir = path.join(__dirname, "../uploads/logos");
     await fs.mkdir(uploadDir, { recursive: true });
 
-    const imagePath = path.join(uploadDir, `${newGym.id}-${file.originalname}`);
-    await fs.writeFile(imagePath, file.buffer);
+    const imagePath = path.join(uploadDir, `${newGym.id}-${file.name}`);
+    await fs.writeFile(imagePath, file.data);
 
-    const gymLogoUrl = `/uploads/logos/${newGym.id}-${file.originalname}`;
+    const gymLogoUrl = `/uploads/logos/${newGym.id}-${file.name}`;
     await prisma.gym.update({
       where: { id: newGym.id },
       data: { logo: gymLogoUrl },

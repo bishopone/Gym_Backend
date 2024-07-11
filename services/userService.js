@@ -7,101 +7,102 @@ const sharp = require("sharp");
 const { createSubscriptionService } = require("./subscriptionService");
 require("dotenv").config();
 
-const generateUniqueUsername = async (name) => {
-  let username = name.toLowerCase().replace(/\s+/g, "");
-  let uniqueNumber = Math.floor(Math.random() * 10000);
-  let finalUsername = `${username}${uniqueNumber}`;
-  while (await prisma.user.findUnique({ where: { username: finalUsername } })) {
-    uniqueNumber = Math.floor(Math.random() * 10000);
-    finalUsername = `${username}${uniqueNumber}`;
-  }
-  return finalUsername;
-};
-
-const saveProfileImage = async (userId, file) => {
-  const hdUploadDir = path.join(__dirname, "../uploads/profile/hd");
-  const sdUploadDir = path.join(__dirname, "../uploads/profile/sd");
-
-  if (!fs.existsSync(hdUploadDir)) {
-    fs.mkdirSync(hdUploadDir, { recursive: true });
-  }
-  if (!fs.existsSync(sdUploadDir)) {
-    fs.mkdirSync(sdUploadDir, { recursive: true });
-  }
-
-  const hdImagePath = path.join(hdUploadDir, `${userId}-${file.originalname}`);
-  const sdImagePath = path.join(sdUploadDir, `${userId}-${file.originalname}`);
-
-  await sharp(file.buffer).toFile(hdImagePath);
-  await sharp(file.buffer).resize(200, 200).toFile(sdImagePath); // Adjust the size as needed
-
-  return {
-    hd: `/uploads/profile/hd/${userId}-${file.originalname}`,
-    sd: `/uploads/profile/sd/${userId}-${file.originalname}`,
+  const generateUniqueUsername = async (name) => {
+    let username = name.toLowerCase().replace(/\s+/g, "");
+    let uniqueNumber = Math.floor(Math.random() * 10000);
+    let finalUsername = `${username}${uniqueNumber}`;
+    while (await prisma.user.findUnique({ where: { username: finalUsername } })) {
+      uniqueNumber = Math.floor(Math.random() * 10000);
+      finalUsername = `${username}${uniqueNumber}`;
+    }
+    return finalUsername;
   };
-};
 
-exports.registerUser = async (userData, file, user) => {
-  var { email, password, name, phoneNumber, gymId, role, subscription } =
-    userData;
-
-  console.log(subscription);
-  if (!gymId) {
-    gymId = user.gymId;
-  }
-  if (!role) {
-    role = "3";
-  }
-  const username = await generateUniqueUsername(name);
-  var newpassword = password;
-
-  if (!password) {
-    newpassword = "123456";
-  }
-  const hashedPassword = await bcrypt.hash(newpassword, 10);
-
-  const newUser = await prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      username,
-      name,
-      phoneNumber,
-      gymId: parseInt(gymId),
-    },
-  });
-
-  if (file) {
-    const { hd, sd } = await saveProfileImage(newUser.id, file);
-    await prisma.user.update({
-      where: { id: newUser.id },
-      data: { profileImageUrl: hd },
-    });
-  }
-  if (role) {
-    await prisma.userRole.upsert({
-      where: { userId_roleId: { userId: newUser.id, roleId: parseInt(role) } },
-      update: {
-        roleId: parseInt(role),
-      },
-      create: {
-        userId: newUser.id,
-        roleId: parseInt(role),
-      },
-    });
-  }
-  if (subscription) {
-    const currentDate = new Date(); // Get the current date and time
-
-    const data = {
-      userId: newUser.id,
-      subscriptionTypeId: parseInt(subscription),
-      startDate: currentDate.toISOString(), // Get the current date and time
+  const saveProfileImage = async (userId, file) => {
+    const hdUploadDir = path.join(__dirname, "../uploads/profile/hd");
+    const sdUploadDir = path.join(__dirname, "../uploads/profile/sd");
+  
+    if (!fs.existsSync(hdUploadDir)) {
+      fs.mkdirSync(hdUploadDir, { recursive: true });
+    }
+    if (!fs.existsSync(sdUploadDir)) {
+      fs.mkdirSync(sdUploadDir, { recursive: true });
+    }
+  
+    const hdImagePath = path.join(hdUploadDir, `${userId}-${file.name}`);
+    const sdImagePath = path.join(sdUploadDir, `${userId}-${file.name}`);
+  
+    await sharp(file.data).toFile(hdImagePath);
+    await sharp(file.data).resize(200, 200).toFile(sdImagePath); // Adjust the size as needed
+  
+    return {
+      hd: `/uploads/profile/hd/${userId}-${file.name}`,
+      sd: `/uploads/profile/sd/${userId}-${file.name}`,
     };
-    await createSubscriptionService(data);
-  }
-  return newUser;
-};
+  };
+  
+
+  exports.registerUser = async (userData, file, user) => {
+    var { email, password, name, phoneNumber, gymId, role, subscription } =
+      userData;
+
+    console.log(subscription);
+    if (!gymId) {
+      gymId = user.gymId;
+    }
+    if (!role) {
+      role = "3";
+    }
+    const username = await generateUniqueUsername(name);
+    var newpassword = password;
+
+    if (!password) {
+      newpassword = "123456";
+    }
+    const hashedPassword = await bcrypt.hash(newpassword, 10);
+
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        username,
+        name,
+        phoneNumber,
+        gymId: parseInt(gymId),
+      },
+    });
+
+    if (file) {
+      const { hd, sd } = await saveProfileImage(newUser.id, file);
+      await prisma.user.update({
+        where: { id: newUser.id },
+        data: { profileImageUrl: hd },
+      });
+    }
+    if (role) {
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: newUser.id, roleId: parseInt(role) } },
+        update: {
+          roleId: parseInt(role),
+        },
+        create: {
+          userId: newUser.id,
+          roleId: parseInt(role),
+        },
+      });
+    }
+    if (subscription) {
+      const currentDate = new Date(); // Get the current date and time
+
+      const data = {
+        userId: newUser.id,
+        subscriptionTypeId: parseInt(subscription),
+        startDate: currentDate.toISOString(), // Get the current date and time
+      };
+      await createSubscriptionService(data);
+    }
+    return newUser;
+  };
 
 exports.loginUser = async (email, password) => {
   const user = await prisma.user.findUnique({ where: { email } });
