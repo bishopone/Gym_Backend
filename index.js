@@ -9,6 +9,7 @@ const flash = require('connect-flash');
 const session = require('express-session');
 
 const express = require('express');
+const multer = require('multer');
 
 const { PORT, NODE_ENV, SESSION_SECRET } = process.env;
 
@@ -50,12 +51,27 @@ app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: !isDev }  // Set secure to true in production
+  cookie: { secure: true }  // Set secure to true in production
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
+app.use(multer({ 
+  dest: './uploads/',
+  rename: function (fieldname, filename) {
+      return filename.replace(/\W+/g, '-').toLowerCase() + Date.now()
+  },
+  onFileUploadStart: function (file) {
+      console.error(file.fieldname + ' is starting ...')
+  },
+  onFileUploadData: function (file, data) {
+      console.error(data.length + ' of ' + file.fieldname + ' arrived')
+  },
+  onFileUploadComplete: function (file) {
+      console.error(file.fieldname + ' uploaded to  ' + file.path)
+  }
+}));
 
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
