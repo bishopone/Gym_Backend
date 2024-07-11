@@ -1,0 +1,222 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextIndex", "fullTextSearch"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Gym {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique
+  owner            String?            @db.VarChar(250)
+  address          String?
+  phoneNumber      String?
+  email            String?
+  status           Gym_status         @default(Demo)
+  createdAt        DateTime           @default(now())
+  logo             String?
+  permissions      Permission[]
+  products         Product[]
+  roles            Role[]
+  subscriptionType SubscriptionType[]
+  transactions     Transaction[]
+  users            User[]
+}
+
+model User {
+  id              Int                @id @default(autoincrement())
+  email           String?             
+  password        String
+  username        String             @unique
+  name            String
+  phoneNumber     String?            @unique
+  profileImageUrl String?
+  createdAt       DateTime           @default(now())
+  gymId           Int?
+  status          User_status        @default(Active)
+  createdProducts Product[]          @relation("CreatedProducts")
+  RememberMeToken RememberMeToken?
+  transactions    Transaction[]
+  gym             Gym?               @relation(fields: [gymId], references: [id])
+  roles           UserRole[]
+  subscriptions   UserSubscription[]
+
+  @@index([gymId])
+  @@fulltext([name])
+  @@fulltext([username])
+  @@fulltext([phoneNumber])
+  @@fulltext([email])
+  @@fulltext([email, username])
+  @@fulltext([email, username, name])
+  @@fulltext([email, username, name, phoneNumber])
+}
+
+model RememberMeToken {
+  id        Int      @id @default(autoincrement())
+  token     String
+  userId    Int      @unique
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  roleName    String           @unique
+  gymId       Int?
+  gym         Gym?             @relation(fields: [gymId], references: [id])
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@index([gymId])
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  role   Role @relation(fields: [roleId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId], map: "UserRole_roleId_fkey")
+}
+
+model Permission {
+  id             Int              @id @default(autoincrement())
+  permissionName String           @unique
+  gymId          Int?
+  gym            Gym?             @relation(fields: [gymId], references: [id])
+  roles          RolePermission[]
+
+  @@index([gymId])
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  role         Role       @relation(fields: [roleId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@index([permissionId], map: "RolePermission_permissionId_fkey")
+}
+
+model Product {
+  id                 Int                 @id @default(autoincrement())
+  productName        String
+  productDescription String
+  productType        String
+  price              Float
+  durationMonths     Int?
+  stock              Int?
+  createdAt          DateTime            @default(now())
+  createdById        Int
+  gymId              Int
+  productImageUrl    String?
+  createdBy          User                @relation("CreatedProducts", fields: [createdById], references: [id])
+  gym                Gym                 @relation(fields: [gymId], references: [id])
+  transactionDetails TransactionDetail[]
+
+  @@index([gymId])
+  @@index([createdById], map: "Product_createdById_fkey")
+}
+
+model Transaction {
+  id                 Int                 @id @default(autoincrement())
+  userId             Int
+  amount             Float
+  transactionType    String
+  transactionDate    DateTime            @default(now())
+  description        String?
+  gymId              Int
+  payments           Payment[]
+  gym                Gym                 @relation(fields: [gymId], references: [id])
+  user               User                @relation(fields: [userId], references: [id])
+  transactionDetails TransactionDetail[]
+
+  @@index([userId], map: "Transaction_userId_fkey")
+  @@index([gymId])
+}
+
+model TransactionDetail {
+  id            Int         @id @default(autoincrement())
+  transactionId Int
+  productId     Int
+  quantity      Int
+  price         Float
+  createdAt     DateTime    @default(now())
+  product       Product     @relation(fields: [productId], references: [id])
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([productId], map: "TransactionDetail_productId_fkey")
+  @@index([transactionId], map: "TransactionDetail_transactionId_fkey")
+}
+
+model Payment {
+  id            Int         @id @default(autoincrement())
+  transactionId Int
+  amount        Float
+  paymentDate   DateTime    @default(now())
+  paymentMethod String
+  createdAt     DateTime    @default(now())
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId], map: "Payment_transactionId_fkey")
+}
+
+model SubscriptionType {
+  id                Int                 @id @default(autoincrement())
+  name              String
+  description       String
+  cost              Float
+  durationInDays    Int
+  createdAt         DateTime            @default(now())
+  gymId             Int
+  status            Subscription_status @default(Active)
+  gym               Gym                 @relation(fields: [gymId], references: [id])
+  userSubscriptions UserSubscription[]
+
+  @@index([gymId], map: "SubscriptionType_gymId_fkey")
+}
+
+model UserSubscription {
+  id                 Int              @id @default(autoincrement())
+  userId             Int
+  subscriptionTypeId Int
+  startDate          DateTime         @default(now())
+  endDate            DateTime
+  createdAt          DateTime         @default(now())
+  subscriptionType   SubscriptionType @relation(fields: [subscriptionTypeId], references: [id])
+  user               User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([subscriptionTypeId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  tableName String
+  recordId  Int
+  action    String
+  oldValue  String?  @db.LongText
+  newValue  String?  @db.LongText
+  changedAt DateTime @default(now())
+}
+
+enum Gym_status {
+  Demo
+  Active
+  Disabled
+}
+
+enum Subscription_status {
+  Active
+  Disabled
+}
+
+enum User_status {
+  Active
+  Disabled
+}
