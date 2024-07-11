@@ -18,13 +18,7 @@ const app = express();
 
 // if (isDev) {
 // }
-app.use(
-    cors({
-      origin: process.env.CLIENT_URL,
-      optionsSuccessStatus: 200,
-      credentials: true,
-    })
-);
+app.use(cors());
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
