@@ -18,7 +18,7 @@ const app = express();
 
 // if (isDev) {
 // }
-app.use(cors());
+app.use(cors("*"));
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
