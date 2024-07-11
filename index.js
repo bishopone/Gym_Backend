@@ -30,7 +30,7 @@ const corsOptions = {
   credentials: true,
 };
 
-app.use(cors());
+app.use(cors(corsOptions));
 
 // Handle preflight requests for all routes
 app.options('*', cors(corsOptions));
@@ -58,6 +58,10 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
 
+// app.use(fileUpload({
+//   useTempFiles : true,
+//   tempFileDir : '/tmp/'
+// }));
 app.use(fileUpload());
 
 
