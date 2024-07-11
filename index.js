@@ -16,9 +16,23 @@ const isDev = NODE_ENV === 'development';
 
 const app = express();
 
-// if (isDev) {
-// }
-app.use(cors("*"));
+const allowedOrigins = ['http://localhost:3000', 'https://bellybanclientmanager.web.app'];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests for all routes
+app.options('*', cors(corsOptions));
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
