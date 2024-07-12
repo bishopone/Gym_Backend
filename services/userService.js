@@ -189,9 +189,9 @@ exports.updateUser = async (userId, userData, file) => {
 
 exports.getAllUsers = async (req, page, limit) => {
   const offset = (page - 1) * limit;
-  
+  console.log(req.user.fillters)
   const users = await prisma.user.findMany({
-    where: req.user.filters,
+    where: req.user.fillters,
     include: {
       subscriptions: { include: { subscriptionType: true } },
       roles: { include: { role: { select: { roleName: true } } } },
@@ -247,7 +247,7 @@ exports.getAllUsers = async (req, page, limit) => {
   const usersData = await Promise.all(userPromises);
 
   const totalUsers = await prisma.user.count({
-    where: req.user.filters,
+    where: req.user.fillters,
   });
 
   return {
@@ -427,7 +427,7 @@ exports.getExpiredToday = async () => {
 exports.getExpiringThisWeek = async () => {
   const today = new Date();
   const endOfWeek = new Date();
-  endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
+  endOfWeek.setDate(today.getDate() + (7 + today.getDay()));
 
   const users = await prisma.user.findMany({
     where: {

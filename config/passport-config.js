@@ -82,9 +82,11 @@ passport.use(
             (rolePermission) => rolePermission.permission.permissionName
           )
         );
+        console.log(user)
         user.permissions = permissions;
         user.fillters = {}
-        if (user.gymId) {
+        if (user?.gymId) {
+
           user.fillters = {gymId: user.gymId};
         }
         // console.log(user)

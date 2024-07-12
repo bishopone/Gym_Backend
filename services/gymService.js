@@ -47,7 +47,7 @@ const editGym = async (gymData, file, id) => {
       where: { id: newGym.id },
       data: { logo: gymLogoUrl },
     });
-
+    
     newGym.logo = gymLogoUrl; // Add the logo URL to the newGym object
   }
 
