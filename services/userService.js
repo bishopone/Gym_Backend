@@ -7,102 +7,110 @@ const sharp = require("sharp");
 const { createSubscriptionService } = require("./subscriptionService");
 require("dotenv").config();
 
-  const generateUniqueUsername = async (name) => {
-    let username = name.toLowerCase().replace(/\s+/g, "");
-    let uniqueNumber = Math.floor(Math.random() * 10000);
-    let finalUsername = `${username}${uniqueNumber}`;
-    while (await prisma.user.findUnique({ where: { username: finalUsername } })) {
-      uniqueNumber = Math.floor(Math.random() * 10000);
-      finalUsername = `${username}${uniqueNumber}`;
-    }
-    return finalUsername;
+const generateUniqueUsername = async (name) => {
+  let username = name.toLowerCase().replace(/\s+/g, "");
+  let uniqueNumber = Math.floor(Math.random() * 10000);
+  let finalUsername = `${username}${uniqueNumber}`;
+  while (await prisma.user.findUnique({ where: { username: finalUsername } })) {
+    uniqueNumber = Math.floor(Math.random() * 10000);
+    finalUsername = `${username}${uniqueNumber}`;
+  }
+  return finalUsername;
+};
+
+const saveProfileImage = async (userId, file) => {
+  const hdUploadDir = path.join(__dirname, "../uploads/profile/hd");
+  const sdUploadDir = path.join(__dirname, "../uploads/profile/sd");
+
+  if (!fs.existsSync(hdUploadDir)) {
+    fs.mkdirSync(hdUploadDir, { recursive: true });
+  }
+  if (!fs.existsSync(sdUploadDir)) {
+    fs.mkdirSync(sdUploadDir, { recursive: true });
+  }
+
+  const hdImagePath = path.join(hdUploadDir, `${userId}-${file.name}`);
+  const sdImagePath = path.join(sdUploadDir, `${userId}-${file.name}`);
+
+  await sharp(file.data).toFile(hdImagePath);
+  await sharp(file.data).resize(200, 200).toFile(sdImagePath); // Adjust the size as needed
+
+  return {
+    hd: `/uploads/profile/hd/${userId}-${file.name}`,
+    sd: `/uploads/profile/sd/${userId}-${file.name}`,
   };
+};
 
-  const saveProfileImage = async (userId, file) => {
-    const hdUploadDir = path.join(__dirname, "../uploads/profile/hd");
-    const sdUploadDir = path.join(__dirname, "../uploads/profile/sd");
-  
-    if (!fs.existsSync(hdUploadDir)) {
-      fs.mkdirSync(hdUploadDir, { recursive: true });
-    }
-    if (!fs.existsSync(sdUploadDir)) {
-      fs.mkdirSync(sdUploadDir, { recursive: true });
-    }
-  
-    const hdImagePath = path.join(hdUploadDir, `${userId}-${file.name}`);
-    const sdImagePath = path.join(sdUploadDir, `${userId}-${file.name}`);
-  
-    await sharp(file.data).toFile(hdImagePath);
-    await sharp(file.data).resize(200, 200).toFile(sdImagePath); // Adjust the size as needed
-  
-    return {
-      hd: `/uploads/profile/hd/${userId}-${file.name}`,
-      sd: `/uploads/profile/sd/${userId}-${file.name}`,
-    };
-  };
-  
+exports.registerUser = async (userData, file, user) => {
+  var { email, password, name, phoneNumber, gymId, role, subscription } =
+    userData;
 
-  exports.registerUser = async (userData, file, user) => {
-    var { email, password, name, phoneNumber, gymId, role, subscription } =
-      userData;
+  console.log(subscription);
+  if (!gymId) {
+    gymId = user.gymId;
+  }
+  if (!role) {
+    role = "3";
+  }
 
-    console.log(subscription);
-    if (!gymId) {
-      gymId = user.gymId;
-    }
-    if (!role) {
-      role = "3";
-    }
-    const username = await generateUniqueUsername(name);
-    var newpassword = password;
+  const username = await generateUniqueUsername(name);
+  var newpassword = password;
 
-    if (!password) {
-      newpassword = "123456";
-    }
-    const hashedPassword = await bcrypt.hash(newpassword, 10);
+  if (!password) {
+    newpassword = "123456";
+  }
+  const hashedPassword = await bcrypt.hash(newpassword, 10);
 
-    const newUser = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        username,
-        name,
-        phoneNumber,
-        gymId: parseInt(gymId),
+  
+  const newUser = await prisma.user.upsert({
+    where: {
+      phoneNumber
+    },
+    update: {
+      status: 'Active'
+    },
+    
+    create: {
+      email,
+      password: hashedPassword,
+      username,
+      name,
+      phoneNumber,
+      gymId: parseInt(gymId),
+    },
+  });
+
+  if (file) {
+    const { hd, sd } = await saveProfileImage(newUser.id, file);
+    await prisma.user.update({
+      where: { id: newUser.id },
+      data: { profileImageUrl: hd },
+    });
+  }
+  if (role) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: newUser.id, roleId: parseInt(role) } },
+      update: {
+        roleId: parseInt(role),
+      },
+      create: {
+        userId: newUser.id,
+        roleId: parseInt(role),
       },
     });
+  }
+  if (subscription) {
+    const currentDate = new Date(); // Get the current date and time
 
-    if (file) {
-      const { hd, sd } = await saveProfileImage(newUser.id, file);
-      await prisma.user.update({
-        where: { id: newUser.id },
-        data: { profileImageUrl: hd },
-      });
-    }
-    if (role) {
-      await prisma.userRole.upsert({
-        where: { userId_roleId: { userId: newUser.id, roleId: parseInt(role) } },
-        update: {
-          roleId: parseInt(role),
-        },
-        create: {
-          userId: newUser.id,
-          roleId: parseInt(role),
-        },
-      });
-    }
-    if (subscription) {
-      const currentDate = new Date(); // Get the current date and time
-
-      const data = {
-        userId: newUser.id,
-        subscriptionTypeId: parseInt(subscription),
-        startDate: currentDate.toISOString(), // Get the current date and time
-      };
-      await createSubscriptionService(data);
-    }
-    return newUser;
-  };
+    const data = {
+      userId: newUser.id,
+      subscriptionTypeId: parseInt(subscription),
+      startDate: currentDate.toISOString(), // Get the current date and time
+    };
+    await createSubscriptionService(data);
+  }
+  return newUser;
+};
 
 exports.loginUser = async (email, password) => {
   const user = await prisma.user.findUnique({ where: { email } });
@@ -136,8 +144,12 @@ exports.validateToken = async (token) => {
 };
 
 exports.updateUser = async (userId, userData, file) => {
-  const { email, password, name, phoneNumber, gymId, role, subscription } =
+  const { email, oldPassword,
+    newPassword,
+    confirmPassword, name, phoneNumber, gymId, role, subscription } =
     userData;
+    console.log("userData")
+    console.log(userData)
   const data = {
     email,
     name,
@@ -146,8 +158,14 @@ exports.updateUser = async (userId, userData, file) => {
   if (gymId) {
     data.gymId = parseInt(gymId);
   }
-  if (password) {
-    data.password = await bcrypt.hash(password, 10);
+  if (oldPassword) {
+    const user = await prisma.user.findUnique({ where: { id:userId } });
+    if (user && (await bcrypt.compare(oldPassword, user.password))) {
+      if(newPassword === confirmPassword){
+        data.password = await bcrypt.hash(newPassword, 10);
+      }
+    }
+  
   }
   const newUser = await prisma.user.update({
     where: { id: userId },
@@ -181,6 +199,7 @@ exports.updateUser = async (userId, userData, file) => {
       userId: newUser.id,
       subscriptionTypeId: parseInt(subscription),
       startDate: currentDate.toISOString(), // Get the current date and time
+      gymId: gymId
     };
     await createSubscriptionService(data);
   }
@@ -189,7 +208,7 @@ exports.updateUser = async (userId, userData, file) => {
 
 exports.getAllUsers = async (req, page, limit) => {
   const offset = (page - 1) * limit;
-  console.log(req.user.fillters)
+  console.log(req.user.fillters);
   const users = await prisma.user.findMany({
     where: req.user.fillters,
     include: {
@@ -265,7 +284,9 @@ exports.getUserById = async (id) => {
     },
     include: {
       roles: { include: { role: { select: { roleName: true } } } },
-      subscriptions: {select :{subscriptionType:{select:{id:true, name:true}}} },
+      subscriptions: {
+        select: { subscriptionType: { select: { id: true, name: true } } },
+      },
     },
   });
   const formattedUsers = {
@@ -293,7 +314,7 @@ exports.fuzzySearchUsers = async (query, roleid, gymId) => {
       { username: { contains: query } },
       { name: { contains: query } },
       { phoneNumber: { contains: query } },
-    ]
+    ],
   };
 
   // Add role and gymId filtering conditions
@@ -302,16 +323,17 @@ exports.fuzzySearchUsers = async (query, roleid, gymId) => {
     whereClause.AND.push({
       roles: {
         some: {
-          roleId: parseInt(roleid)
-        }
-      }
+          roleId: parseInt(roleid),
+        },  
+      },
+      status: 'Active'
     });
   }
 
   if (gymId !== null && gymId !== undefined) {
     if (!whereClause.AND) whereClause.AND = [];
     whereClause.AND.push({
-      gymId: gymId
+      gymId: gymId,
     });
   }
 
@@ -335,21 +357,22 @@ exports.fuzzySearchUsers = async (query, roleid, gymId) => {
               id: true,
               name: true,
               durationInDays: true,
-            }
-          }
+            },
+          },
         },
         orderBy: {
-          endDate: 'desc'
+          endDate: "desc",
         },
         where: {
           endDate: {
-            gte: new Date() // Fetch only active subscriptions
-          }
+            gte: new Date(), // Fetch only active subscriptions
+          },
         },
-        take: 1 // Limit to fetch the latest active subscription
-      }
+        take: 1, // Limit to fetch the latest active subscription
+      },
+      
     },
-    where: whereClause
+    where: whereClause,
   });
 
   const userPromises = results.map(async (user) => {
@@ -367,36 +390,132 @@ exports.fuzzySearchUsers = async (query, roleid, gymId) => {
   return Promise.all(userPromises);
 };
 
-
 exports.deleteUserById = async (id) => {
-  const user = await prisma.user.delete({
+  const canDelete = await prisma.user.findUnique({
+    where: { id: parseInt(id) },
+    select: {
+      id: true,
+      _count: {
+        select: {
+          transactions: {
+            where: {
+              status: "Paid"
+            }
+          },
+        }
+      },
+    },
+  });
+  console.log("canDelete")
+  console.log(canDelete)
+  if (canDelete._count.transactions === 0) {
+    const user = await prisma.user.delete({
+      where: {
+        id: parseInt(id),
+      },
+    });
+    return user;
+  }
+ 
+  const user = await prisma.user.update({
     where: {
       id: parseInt(id),
     },
+    data: {
+      status: "Disabled"
+    }
   });
-
   return user;
-};
-
-exports.getExpiredSubscriptions = async () => {
+};exports.getExpiredSubscriptions = async () => {
   const today = new Date();
 
   const users = await prisma.user.findMany({
     where: {
+      roles: {
+        some: {
+          roleId: 3
+        }
+      },
+      NOT: {
+        subscriptions: {
+          some: {
+            endDate: { gt: today }
+          }
+        }
+      },
       subscriptions: {
         some: {
-          endDate: { lt: today },
-        },
-      },
+          endDate: { lt: today }
+        }
+      }
     },
     include: {
-      subscriptions: { include: { subscriptionType: true } },
-      roles: { include: { role: { select: { roleName: true } } } },
+      subscriptions: {
+        where: {
+          endDate: { lt: today }
+        },
+        include: {
+          subscriptionType: true
+        }
+      },
+      roles: {
+        include: {
+          role: {
+            select: {
+              roleName: true
+            }
+          }
+        }
+      },
     },
   });
 
   return formatUsers(users);
 };
+
+
+exports.getUnsubscribedUsers = async () => {
+  const today = new Date();
+
+  const users = await prisma.user.findMany({
+    where: {
+      roles: {
+        some: {
+          roleId: 3
+        }
+      },
+      NOT: {
+        subscriptions: {
+          some: {
+            OR: [
+              {
+                endDate: { gt: today }
+              },
+              {
+                endDate: { lt: today }
+              }
+            ]
+          }
+        }
+      }
+    },
+    include: {
+      subscriptions: true,
+      roles: {
+        include: {
+          role: {
+            select: {
+              roleName: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  return formatUsers(users);
+};
+
 
 exports.getExpiredToday = async () => {
   const today = new Date();

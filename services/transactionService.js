@@ -1,7 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const auditLogService = require('./auditLogService');
-const { createSubscriptionService } = require('./subscriptionService');
 
 exports.startTransaction = async (transactionData) => {
   const {
@@ -11,8 +10,9 @@ exports.startTransaction = async (transactionData) => {
     transactionDate,
     description,
     paymentMethod,
+    subscriptionId,
     gymId,
-    subscriptionData // Added subscriptionData here
+    status
   } = transactionData;
 
   return await prisma.$transaction(async (prisma) => {
@@ -22,10 +22,18 @@ exports.startTransaction = async (transactionData) => {
         transactionDate,
         transactionType: transactionType,
         description,
+        status:status,
         payments: {
           create: {
             amount,
             paymentMethod
+          }
+        },
+        subscription:
+        {
+          connect:
+          {
+            id: subscriptionId
           }
         },
         gym: {
@@ -44,16 +52,7 @@ exports.startTransaction = async (transactionData) => {
       }
     });
 
-    // If there is subscription data, create a subscription
-    if (subscriptionData) {
-      await createSubscriptionService({
-        ...subscriptionData,
-        createdById: userId,
-        gymId,
-      });
-    }
-
-    await auditLogService.logChange('Transaction', transaction.id, 'create', null, transaction);
+    await auditLogService.logChange('Transaction', transaction.id, 'create', null, JSON.stringify(transaction));
 
     return transaction;
   });
@@ -63,11 +62,56 @@ exports.completeTransaction = async (transactionId) => {
   return await prisma.$transaction(async (prisma) => {
     const transaction = await prisma.transaction.update({
       where: { id: transactionId },
-      data: { transactionType: 'complete' }
+      data: { status: 'Paid' }
     });
 
-    await auditLogService.logChange('Transaction', transaction.id, 'update', { transactionType: 'purchase' }, transaction);
+    await auditLogService.logChange('Transaction', transaction.id, 'update', null, JSON.stringify(transaction));
 
     return transaction;
   });
+};
+
+exports.allTransactions = async ({ page, pageSize, startDate, endDate, userId, status }) => {
+  try {
+    const whereClause = {};
+
+    if (startDate) {
+      whereClause.createdAt = { gte: new Date(startDate) };
+    }
+    if (endDate) {
+      whereClause.createdAt = { ...whereClause.createdAt, lte: new Date(endDate) };
+    }
+    if (userId) {
+      whereClause.userId = parseInt(userId);
+    }
+    if (status) {
+      whereClause.status = status;
+    }
+
+    const total = await prisma.transaction.count({ where: whereClause });
+    const transactions = await prisma.transaction.findMany({
+      where: whereClause,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        user:true,
+        subscription: {
+          select:{
+            subscriptionType: true
+          }
+        }
+    
+      },
+      orderBy: { transactionDate: 'desc' },
+    });
+
+    return {
+      total,
+      page,
+      pageSize,
+      transactions,
+    };
+  } catch (error) {
+    throw new Error(error.message);
+  }
 };

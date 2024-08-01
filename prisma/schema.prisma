@@ -9,26 +9,28 @@ datasource db {
 }
 
 model Gym {
-  id               Int                @id @default(autoincrement())
-  name             String             @unique
-  owner            String?            @db.VarChar(250)
-  address          String?
-  phoneNumber      String?
-  email            String?
-  status           Gym_status         @default(Demo)
-  createdAt        DateTime           @default(now())
-  logo             String?
-  permissions      Permission[]
-  products         Product[]
-  roles            Role[]
-  subscriptionType SubscriptionType[]
-  transactions     Transaction[]
-  users            User[]
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique
+  owner             String?             @db.VarChar(250)
+  address           String?
+  phoneNumber       String?
+  email             String?
+  status            Gym_status          @default(Demo)
+  createdAt         DateTime            @default(now())
+  logo              String?
+  permissions       Permission[]
+  products          Product[]
+  roles             Role[]
+  subscriptionType  SubscriptionType[]
+  transactions      Transaction[]
+  users             User[]
+  Attendance        Attendance[]
+  CardConfiguration CardConfiguration[]
 }
 
 model User {
   id              Int                @id @default(autoincrement())
-  email           String?             
+  email           String?
   password        String
   username        String             @unique
   name            String
@@ -40,9 +42,10 @@ model User {
   createdProducts Product[]          @relation("CreatedProducts")
   RememberMeToken RememberMeToken?
   transactions    Transaction[]
-  gym             Gym?               @relation(fields: [gymId], references: [id])
+  gym             Gym?               @relation(fields: [gymId], references: [id], onDelete: Restrict)
   roles           UserRole[]
   subscriptions   UserSubscription[]
+  Attendance      Attendance[]
 
   @@index([gymId])
   @@fulltext([name])
@@ -63,12 +66,13 @@ model RememberMeToken {
 }
 
 model Role {
-  id          Int              @id @default(autoincrement())
-  roleName    String           @unique
-  gymId       Int?
-  gym         Gym?             @relation(fields: [gymId], references: [id])
-  permissions RolePermission[]
-  users       UserRole[]
+  id             Int              @id @default(autoincrement())
+  roleName       String           @unique
+  gymId          Int?
+  hierarchyLevel Int              @default(1)
+  gym            Gym?             @relation(fields: [gymId], references: [id])
+  permissions    RolePermission[]
+  users          UserRole[]
 
   @@index([gymId])
 }
@@ -131,13 +135,17 @@ model Transaction {
   transactionDate    DateTime            @default(now())
   description        String?
   gymId              Int
+  status             Transaction_Status  @default(UnPaid)
+  subscriptionId     Int?
   payments           Payment[]
-  gym                Gym                 @relation(fields: [gymId], references: [id])
-  user               User                @relation(fields: [userId], references: [id])
+  gym                Gym                 @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  subscription       UserSubscription?   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactionDetails TransactionDetail[]
 
   @@index([userId], map: "Transaction_userId_fkey")
   @@index([gymId])
+  @@index([subscriptionId])
 }
 
 model TransactionDetail {
@@ -161,7 +169,7 @@ model Payment {
   paymentDate   DateTime    @default(now())
   paymentMethod String
   createdAt     DateTime    @default(now())
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([transactionId], map: "Payment_transactionId_fkey")
 }
@@ -188,21 +196,52 @@ model UserSubscription {
   startDate          DateTime         @default(now())
   endDate            DateTime
   createdAt          DateTime         @default(now())
+  Transaction        Transaction[]
   subscriptionType   SubscriptionType @relation(fields: [subscriptionTypeId], references: [id])
-  user               User             @relation(fields: [userId], references: [id])
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([subscriptionTypeId])
 }
 
 model AuditLog {
-  id        Int      @id @default(autoincrement())
-  tableName String
+  id        Int       @id @default(autoincrement())
+  tableName String    @db.VarChar(255)
   recordId  Int
-  action    String
-  oldValue  String?  @db.LongText
-  newValue  String?  @db.LongText
-  changedAt DateTime @default(now())
+  action    String    @db.VarChar(50)
+  oldValue  String?   @db.Text
+  newValue  String?   @db.Text
+  changedAt DateTime? @default(now()) @db.DateTime(0)
+}
+
+model Attendance {
+  id     Int      @id @default(autoincrement())
+  userId Int
+  gymId  Int
+  date   DateTime @default(now())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gym    Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([gymId])
+}
+
+model CardConfiguration {
+  id              Int      @id @default(autoincrement())
+  gymId           Int
+  namePosition    String
+  qrCodePosition  String
+  frontImage      String?
+  backImage       String?
+  nameRotation    Float    @default(0)
+  nameScale       Float    @default(1)
+  nameColor       String   @default("#000000")
+  barcodeRotation Float    @default(0)
+  barcodeScale    Float    @default(1)
+  createdAt       DateTime @default(now())
+  active          Boolean  @default(true)
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
 }
 
 enum Gym_status {
@@ -219,4 +258,9 @@ enum Subscription_status {
 enum User_status {
   Active
   Disabled
+}
+
+enum Transaction_Status {
+  UnPaid
+  Paid
 }

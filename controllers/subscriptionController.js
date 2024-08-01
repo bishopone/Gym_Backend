@@ -2,7 +2,7 @@ const subscriptionService = require('../services/subscriptionService');
 
 exports.createSubscription = async (req, res) => {
   try {
-    const subscription = await subscriptionService.createSubscriptionService(req.body);
+    const subscription = await subscriptionService.createSubscriptionService(req.body, req.user);
     res.status(201).json(subscription);
   } catch (error) {
     console.log(error)
@@ -31,6 +31,19 @@ exports.getUserSubscription = async (req, res) => {
       return res.status(404).json({ message: 'Subscription not found' });
     }
     res.status(200).json(data);
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+exports.deleteUserSubscription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(id)
+    await subscriptionService.deleteUserSubscription(id);
+    res.status(200).json(id);
   } catch (error) {
     console.log(error)
     res.status(500).json({ error: error.message });

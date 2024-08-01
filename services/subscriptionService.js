@@ -1,9 +1,13 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const connect = require('connect-sqlite3');
+const prisma = require('../prisma/client')
+const transactionService = require('./transactionService')
+exports.createSubscriptionService = async (subscriptionData, user) => {
+  const { userId, subscriptionTypeId,status, startDate } = subscriptionData;
+  var gymId = subscriptionData.gymId
+  if(user){
+    gymId = user.gymId
+  }
 
-exports.createSubscriptionService = async (subscriptionData) => {
-  const { userId, subscriptionTypeId, startDate } = subscriptionData;
-  
   const subscriptionType = await prisma.subscriptionType.findUnique({
     where: { id: parseInt(subscriptionTypeId) },
   });
@@ -14,29 +18,11 @@ exports.createSubscriptionService = async (subscriptionData) => {
 
   const calculatedStartDate = startDate || new Date();
   const calculatedEndDate = new Date(calculatedStartDate);
+  const now = new Date()
   calculatedEndDate.setDate(calculatedEndDate.getDate() + subscriptionType.durationInDays);
 
-  const existingSubscription = await prisma.userSubscription.findFirst({
-    where: {
-      userId: parseInt(userId),
-      endDate: {
-        gte: new Date(), // Check if the end date is in the future
-      },
-    },
-  });
 
-  if (existingSubscription) {
-    // Update existing subscription
-    return await prisma.userSubscription.update({
-      where: { id: parseInt(existingSubscription.id) },
-      data: {
-        startDate: calculatedStartDate,
-        endDate: calculatedEndDate,
-      },
-    });
-  } else {
-    // Insert new subscription
-    return await prisma.userSubscription.create({
+    const userSubscription =  await prisma.userSubscription.create({
       data: {
         userId: parseInt(userId),
         subscriptionTypeId: parseInt(subscriptionTypeId),
@@ -44,7 +30,26 @@ exports.createSubscriptionService = async (subscriptionData) => {
         endDate: calculatedEndDate,
       },
     });
-  }
+
+    console.log(user)
+    const transactionData = {
+      userId: parseInt(userId),
+    amount: subscriptionType.cost,
+    transactionType: 'Subscription',
+    transactionDate: now,
+    description: '',
+    subscriptionId: userSubscription.id,
+    paymentMethod: 'Cash',
+    status: status,
+    gymId: parseInt(gymId),
+    }
+    console.log("transactionData")
+    console.log(gymId)
+    console.log(transactionData)
+    const result = await transactionService.startTransaction(transactionData);
+    console.log(result)
+    return userSubscription;
+
 };;
 
 exports.getUserSubscriptionDaysLeft = async (userId) => {
@@ -66,20 +71,32 @@ exports.getUserSubscriptionDaysLeft = async (userId) => {
 
 
 exports.getUserSubscription = async (userId) => {
-  const subscription = await prisma.userSubscription.findFirst({
+  const subscriptions = await prisma.userSubscription.findMany({
     where: { userId: parseInt(userId) },
-    select:{ startDate:true,endDate:true, subscriptionType: true},
-    
+    select:{ id: true, startDate:true,endDate:true, subscriptionType: true},
     orderBy: { endDate: 'desc' },
   }); 
 
-  if (!subscription) {
+  if (!subscriptions) {
     return null;
   }
 
-  const today = new Date();
-  const timeDiff = subscription.endDate - today;
-  const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+  const formatedData = subscriptions.map((subscription)=>
+  {
+    const today = new Date();
+    const timeDiff = subscription.endDate - today;
+    const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    return { subscription, daysLeft }
+  })
 
-  return { subscription, daysLeft };
+  return formatedData;
 };
+
+
+exports.deleteUserSubscription = async (id) => {
+   await prisma.userSubscription.delete({
+    where: { id: parseInt(id) },
+  }); 
+
+};
+

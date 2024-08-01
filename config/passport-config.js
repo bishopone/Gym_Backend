@@ -14,7 +14,7 @@ passport.use(
     async (phoneNumber, password, done) => {
       try {
         const user = await prisma.user.findUnique({ where: { phoneNumber } });
-        if (!user) return done(null, false, { message: "Incorrect email." });
+        if (!user) return done(null, false, { message: "Incorrect phone number." });
         const isValid = await bcrypt.compare(password, user.password);
         if (!isValid)
           return done(null, false, { message: "Incorrect password." });
@@ -56,7 +56,6 @@ passport.use(
     },
     async (jwtPayload, done) => {
       try {
-        console.log(jwtPayload)
         const user = await prisma.user.findUnique({
           where: { id: jwtPayload.userId },
         });
@@ -82,7 +81,6 @@ passport.use(
             (rolePermission) => rolePermission.permission.permissionName
           )
         );
-        console.log(user)
         user.permissions = permissions;
         user.fillters = {}
         if (user?.gymId) {
@@ -92,7 +90,6 @@ passport.use(
         // console.log(user)
         return done(null, user);
       } catch (err) {
-        console.log(err)
         return done(err);
       }
     }

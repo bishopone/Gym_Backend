@@ -5,17 +5,21 @@ require("dotenv").config();
 
 exports.register = async (req, res) => {
   try {
-    const newUser = await userService.registerUser(req.body, req.files?.profileImage, req.user);
+    const newUser = await userService.registerUser(
+      req.body,
+      req.files?.profileImage,
+      req.user
+    );
     res.status(201).json(newUser);
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(400).json({ message: error.message });
   }
 };
 
 exports.edit = async (req, res) => {
   try {
-    console.log(req.files)
+    console.log(req.files);
 
     const updatedUser = await userService.updateUser(
       parseInt(req.params.id),
@@ -25,7 +29,7 @@ exports.edit = async (req, res) => {
 
     res.json(updatedUser);
   } catch (error) {
-    console.log(error)
+    console.log(error);
 
     res.status(400).json({ message: error.message });
   }
@@ -86,7 +90,6 @@ exports.login = (req, res, next) => {
   passport.authenticate("remember-me");
 };
 
-
 exports.refreshToken = (req, res) => {
   const { refresh_token } = req.cookies;
   if (!refresh_token)
@@ -106,13 +109,10 @@ exports.refreshToken = (req, res) => {
 };
 
 exports.logout = (req, res) => {
-
   try {
     res.clearCookie("refresh_token");
     res.json({ message: "Logged out" });
-
-  } catch (e) { 
-  }
+  } catch (e) {}
 };
 
 exports.fuzzySearchUsers = async (req, res) => {
@@ -123,48 +123,57 @@ exports.fuzzySearchUsers = async (req, res) => {
     const results = await userService.fuzzySearchUsers(query, role, gymId);
     res.status(200).json(results);
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({ error: error.message });
   }
 };
 
 exports.deleteUserById = async (req, res) => {
-    try {
-      const users = await userService.deleteUserById(req.params.id);
-      res.json(users);
-    } catch (error) {
-      console.log(error)
-      res.status(400).json({ message: error.message });
-    }
-  };
-  
-  exports.getExpiredSubscriptions = async (req, res) => {
-    try {
-      const users = await userService.getExpiredSubscriptions();
-      res.json(users);
-    } catch (error) {
-      console.error(error);
-      res.status(400).json({ message: error.message });
-    }
-  };
-  
-  exports.getExpiredToday = async (req, res) => {
-    try {
-      const users = await userService.getExpiredToday();
-      res.json(users);
-    } catch (error) {
-      console.error(error);
-      res.status(400).json({ message: error.message });
-    }
-  };
-  
-  exports.getExpiringThisWeek = async (req, res) => {
-    try {
-      const users = await userService.getExpiringThisWeek();
-      res.json(users);
-    } catch (error) {
-      console.error(error);
-      res.status(400).json({ message: error.message });
-    }
-  };
-  
+  try {
+    const users = await userService.deleteUserById(req.params.id);
+    res.json(users);
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.getExpiredSubscriptions = async (req, res) => {
+  try {
+    const users = await userService.getExpiredSubscriptions();
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.getExpiredToday = async (req, res) => {
+  try {
+    const users = await userService.getExpiredToday();
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.getExpiringThisWeek = async (req, res) => {
+  try {
+    const users = await userService.getExpiringThisWeek();
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+exports.getUnsubscribedUsers = async (req, res) => {
+  try {
+    const users = await userService.getUnsubscribedUsers();
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+};

@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const passport = require('passport');
 const userController = require('../controllers/userController');
+const checkRoleHierarchy = require('../middleware/checkRoleHierarchy');
 
 const router = express.Router();
 // const upload = multer();
@@ -16,6 +17,7 @@ router.get('/check', passport.authenticate('jwt', { session: false }), (req, res
 router.get('/expired-subscriptions', passport.authenticate('jwt', { session: false }), userController.getExpiredSubscriptions);
 router.get('/expired-today', passport.authenticate('jwt', { session: false }), userController.getExpiredToday);
 router.get('/expiring-this-week', passport.authenticate('jwt', { session: false }), userController.getExpiringThisWeek);
+router.get('/un-subscribed', passport.authenticate('jwt', { session: false }), userController.getUnsubscribedUsers);
 
 
 // User routes
@@ -25,7 +27,7 @@ router.post('/edit-profile-picture', passport.authenticate('jwt', { session: fal
 router.get('/search', passport.authenticate('jwt', { session: false }), userController.fuzzySearchUsers);
 router.get('/', passport.authenticate('jwt', { session: false }), userController.getAllUsers);
 router.get('/:id', passport.authenticate('jwt', { session: false }), userController.getUserById);
-router.delete('/:id', passport.authenticate('jwt', { session: false }), userController.deleteUserById);
+router.delete('/:id', passport.authenticate('jwt', { session: false }), checkRoleHierarchy(),userController.deleteUserById);
 
 
 module.exports = router;
