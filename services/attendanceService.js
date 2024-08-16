@@ -1,20 +1,25 @@
 const prisma = require('../prisma/client');
 
 exports.createAttendance = async (userId, gymId) => {
-  // Check if the user has already attended today
+  // Find the latest attendance record for the user at the specified gym
   const existingAttendance = await prisma.attendance.findFirst({
     where: {
       userId: userId,
       gymId: gymId,
-      date: {
-        gte: new Date(new Date().setHours(0, 0, 0, 0)),
-        lt: new Date(new Date().setHours(23, 59, 59, 999))
-      }
-    }
+    },
+    orderBy: {
+      date: 'desc',
+    },
   });
 
   if (existingAttendance) {
-    throw new Error('User has already attended today');
+    const lastAttendanceTime = new Date(existingAttendance.date);
+    const currentTime = new Date();
+    const timeDifference = (currentTime - lastAttendanceTime) / (1000 * 60 * 60); // difference in hours
+
+    if (timeDifference < 4) {
+      throw new Error('User must wait at least 4 hours before attending again');
+    }
   }
 
   // Create a new attendance record
@@ -22,8 +27,8 @@ exports.createAttendance = async (userId, gymId) => {
     data: {
       userId: userId,
       gymId: gymId,
-      date: new Date()
-    }
+      date: new Date(),
+    },
   });
 };
 

@@ -284,17 +284,33 @@ exports.getUserById = async (id) => {
     },
     include: {
       roles: { include: { role: { select: { roleName: true } } } },
-      subscriptions: {
-        select: { subscriptionType: { select: { id: true, name: true } } },
-      },
+      SecretCode: true,
+      transactions: true,
+      subscriptions: {include:{
+        subscriptionType: { select: { id: true, name: true } }      }},
     },
   });
+  
   const formattedUsers = {
     ...user,
+    SecretCode: user.SecretCode[0] ?? null,
+
     roleName: user.roles.length === 0 ? "" : user.roles[0].role.roleName,
     role: user.roles.length === 0 ? "" : user.roles[0].roleId,
+    canDelete: user.transactions.length === 0,
+    canDisable: user.transactions.length === 0,
   };
-  return formattedUsers;
+
+  if (formattedUsers.subscriptions.length > 0) {
+    const subscriptions = formattedUsers.subscriptions[0];
+    const today = new Date();
+    const timeDiff = subscriptions.endDate.getTime() - today.getTime();
+    const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    return { ...formattedUsers, subscriptions, daysLeft };
+  } else {
+    return { ...formattedUsers };
+  }
+
 };
 
 exports.updateProfilePicture = async (userId, file) => {

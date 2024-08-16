@@ -1,5 +1,3 @@
-// src/controllers/cardConfigController.js
-
 const path = require('path');
 const fs = require('fs');
 const cardConfigService = require('../services/cardConfigService');
@@ -7,7 +5,8 @@ const cardConfigService = require('../services/cardConfigService');
 const saveCardConfig = async (req, res) => {
   try {
     const { files, body, user } = req;
-    console.log(files)
+    console.log(files);
+    console.log(body);
     const gymId = user.gymId;
 
     const imageSavePath = path.join(__dirname, '../uploads/cards', gymId.toString());
@@ -26,23 +25,17 @@ const saveCardConfig = async (req, res) => {
     let frontImageUrl = '';
     let backImageUrl = '';
 
-    var cardConfigData = {
-      ...body
+    let cardConfigData = {
+      ...body,
     };
     if (files?.frontImage) {
       frontImageUrl = saveImage(files.frontImage, `front_${Date.now()}_${files.frontImage.name}`);
-      cardConfigData = {
-      ...cardConfigData,
-      frontImageUrl,
-    };
+      cardConfigData.frontImageUrl = frontImageUrl;
     }
 
     if (files?.backImage) {
       backImageUrl = saveImage(files.backImage, `back_${Date.now()}_${files.backImage.name}`);
-      cardConfigData = {
-        ...cardConfigData,
-        backImageUrl,
-      };
+      cardConfigData.backImageUrl = backImageUrl;
     }
 
     const cardConfig = await cardConfigService.saveCardConfig(cardConfigData, gymId);
@@ -64,12 +57,23 @@ const fetchCardConfigs = async (req, res) => {
   }
 };
 
+const fetchActiveCardConfig = async (req, res) => {
+  try {
+    const gymId = req.user.gymId;
+    const cardConfig = await cardConfigService.fetchActiveCardConfig(gymId);
+    res.json({ success: true, cardConfig });
+  } catch (error) {
+    console.error('Error fetching card configurations:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch card configurations.' });
+  }
+};
+
 const updateCardConfig = async (req, res) => {
   const { id } = req.params;
 
   try {
     const { files, body, user } = req;
-    console.log(body)
+    console.log(body);
     const gymId = user.gymId;
 
     const imageSavePath = path.join(__dirname, '../uploads/cards', gymId.toString());
@@ -79,7 +83,7 @@ const updateCardConfig = async (req, res) => {
 
     const saveImage = (image, imageName) => {
       const imagePath = path.join(imageSavePath, imageName);
-      image.mv(imagePath, (err) => { 
+      image.mv(imagePath, (err) => {
         if (err) throw err;
       });
       return `/uploads/cards/${gymId}/${imageName}`;
@@ -88,23 +92,17 @@ const updateCardConfig = async (req, res) => {
     let frontImageUrl = '';
     let backImageUrl = '';
 
-    var cardConfigData = {
-      ...body
+    let cardConfigData = {
+      ...body,
     };
     if (files?.frontImage) {
       frontImageUrl = saveImage(files.frontImage, `front_${Date.now()}_${files.frontImage.name}`);
-      cardConfigData = {
-      ...cardConfigData,
-      frontImageUrl,
-    };
+      cardConfigData.frontImageUrl = frontImageUrl;
     }
 
     if (files?.backImage) {
       backImageUrl = saveImage(files.backImage, `back_${Date.now()}_${files.backImage.name}`);
-      cardConfigData = {
-        ...cardConfigData,
-        backImageUrl,
-      };
+      cardConfigData.backImageUrl = backImageUrl;
     }
 
     const cardConfig = await cardConfigService.updateCardConfig(id, cardConfigData);
@@ -115,7 +113,6 @@ const updateCardConfig = async (req, res) => {
   }
 };
 
-
 const deleteCardConfig = async (req, res) => {
   const { id } = req.params;
 
@@ -123,8 +120,20 @@ const deleteCardConfig = async (req, res) => {
     const cardConfig = await cardConfigService.deleteCardConfig(id);
     res.json({ success: true, cardConfig });
   } catch (error) {
-    console.error('Error updating card configuration:', error);
-    res.status(500).json({ success: false, error: 'Failed to update card configuration.' });
+    console.error('Error deleting card configuration:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete card configuration.' });
+  }
+};
+
+
+const makeCardActive = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const cardConfig = await cardConfigService.makeCardActive(id);
+    res.json({ success: true, cardConfig });
+  } catch (error) {
+    console.error('Error deleting card configuration:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete card configuration.' });
   }
 };
 
@@ -149,7 +158,9 @@ const uploadImage = (req, res) => {
 
 module.exports = {
   saveCardConfig,
+  fetchActiveCardConfig,
   deleteCardConfig,
+  makeCardActive,
   fetchCardConfigs,
   updateCardConfig,
   uploadImage,

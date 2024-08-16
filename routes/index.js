@@ -12,6 +12,7 @@ const subscriptionTypeRoutes = require('./subscriptionType');
 const analyticsRoutes = require('./analyticsRoutes');
 const attendanceRoute = require('./attendanceRoutes');
 const cardConfigRoutes = require('./cardConfigRoutes'); // Adjust path as needed
+const secretCodeRoutes = require('./secretCodeRoutes'); // Adjust path as needed
 
 const passport = require('passport');
 
@@ -27,8 +28,9 @@ router.use('/memberships',passport.authenticate('jwt', { session: false}),  memb
 router.use('/roles',passport.authenticate('jwt', { session: false}),  roleRoutes);
 router.use('/subscriptions',passport.authenticate('jwt', { session: false}),  subscriptionRoutes);
 router.use('/subscription-types',passport.authenticate('jwt', { session: false}),  subscriptionTypeRoutes);
-router.use('/analytics', analyticsRoutes);
-router.use('/attendance', attendanceRoute);
+router.use('/analytics',passport.authenticate('jwt', { session: false}), analyticsRoutes);
+router.use('/attendance',passport.authenticate('jwt', { session: false}), attendanceRoute);
+router.use('/secret-code',passport.authenticate('jwt', { session: false}), secretCodeRoutes);
 router.use('/cardConfig',passport.authenticate('jwt', { session: false}), cardConfigRoutes);
 
 

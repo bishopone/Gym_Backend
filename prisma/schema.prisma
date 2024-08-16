@@ -9,23 +9,23 @@ datasource db {
 }
 
 model Gym {
-  id                Int                 @id @default(autoincrement())
-  name              String              @unique
-  owner             String?             @db.VarChar(250)
-  address           String?
-  phoneNumber       String?
-  email             String?
-  status            Gym_status          @default(Demo)
-  createdAt         DateTime            @default(now())
-  logo              String?
-  permissions       Permission[]
-  products          Product[]
-  roles             Role[]
-  subscriptionType  SubscriptionType[]
-  transactions      Transaction[]
-  users             User[]
-  Attendance        Attendance[]
-  CardConfiguration CardConfiguration[]
+  id                 Int                  @id @default(autoincrement())
+  name               String               @unique
+  owner              String?              @db.VarChar(250)
+  address            String?
+  phoneNumber        String?
+  email              String?
+  status             Gym_status           @default(Demo)
+  createdAt          DateTime             @default(now())
+  logo               String?
+  Attendance         Attendance[]
+  CardConfigurations CardConfigurations[]
+  permissions        Permission[]
+  products           Product[]
+  roles              Role[]
+  subscriptionType   SubscriptionType[]
+  transactions       Transaction[]
+  users              User[]
 }
 
 model User {
@@ -39,13 +39,14 @@ model User {
   createdAt       DateTime           @default(now())
   gymId           Int?
   status          User_status        @default(Active)
+  Attendance      Attendance[]
   createdProducts Product[]          @relation("CreatedProducts")
   RememberMeToken RememberMeToken?
+  SecretCode      SecretCode[]
   transactions    Transaction[]
   gym             Gym?               @relation(fields: [gymId], references: [id], onDelete: Restrict)
   roles           UserRole[]
   subscriptions   UserSubscription[]
-  Attendance      Attendance[]
 
   @@index([gymId])
   @@fulltext([name])
@@ -219,29 +220,38 @@ model Attendance {
   userId Int
   gymId  Int
   date   DateTime @default(now())
-  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   gym    Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([gymId])
 }
 
-model CardConfiguration {
-  id              Int      @id @default(autoincrement())
-  gymId           Int
-  namePosition    String
-  qrCodePosition  String
-  frontImage      String?
-  backImage       String?
-  nameRotation    Float    @default(0)
-  nameScale       Float    @default(1)
-  nameColor       String   @default("#000000")
-  barcodeRotation Float    @default(0)
-  barcodeScale    Float    @default(1)
-  createdAt       DateTime @default(now())
-  active          Boolean  @default(true)
+model CardConfigurations {
+  id             Int      @id @default(autoincrement())
+  gymId          Int
+  frontImage     String?  @db.VarChar(255)
+  backImage      String?  @db.VarChar(255)
+  frontBarcode   String?  @db.Text
+  frontQRCode    String?  @db.Text
+  backBarcode    String?  @db.Text
+  backQRCode     String?  @db.Text
+  active         Boolean
+  created_at     DateTime @default(now()) @db.Timestamp(0)
+  updated_at     DateTime @default(now()) @db.Timestamp(0)
+  backImageSize  String?  @db.Text
+  frontImageSize String?  @db.Text
+  Gym            Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade, map: "gymId_card")
 
-  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  @@index([gymId], map: "gymId_card")
+}
+
+model SecretCode {
+  id     String @id @unique(map: "id") @db.Char(20)
+  userid Int
+  User   User   @relation(fields: [userid], references: [id], onUpdate: Restrict, map: "SecretCode_ibfk_1")
+
+  @@index([userid], map: "userid")
 }
 
 enum Gym_status {

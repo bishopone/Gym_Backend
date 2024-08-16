@@ -43,9 +43,6 @@ exports.createSubscriptionService = async (subscriptionData, user) => {
     status: status,
     gymId: parseInt(gymId),
     }
-    console.log("transactionData")
-    console.log(gymId)
-    console.log(transactionData)
     const result = await transactionService.startTransaction(transactionData);
     console.log(result)
     return userSubscription;

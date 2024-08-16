@@ -58,15 +58,54 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
 
-// app.use(fileUpload({
-//   useTempFiles : true,
-//   tempFileDir : '/tmp/'
-// }));
+
 app.use(fileUpload());
 
+const errorHandlingMiddleware = (req, res, next) => {
+  // Store the original send method
+  console.log("res.send")
+  console.log(res.send)
+  const originalSend = res.send;
+  
+  // Override the send method to intercept the response
+  res.send = function (body) {
+    // Check if there's an error from previous middleware
+    const error = res.locals.error;
 
+    // Determine the ISERROR flag and message
+    const isError = Boolean(error);
+    const defaultMessages = {
+      GET: 'Fail to fetch',
+      DELETE: 'Fail to delete',
+      PUT: 'Fail to update',
+      POST: 'Fail to create',
+    };
+    
+    const message = isError
+      ? (req.method === 'GET' ? defaultMessages.GET : defaultMessages[req.method] || 'An error occurred')
+      : (req.method === 'DELETE' ? 'Successfully deleted' : 'Operation successful');
+
+    // Add ISERROR flag and message to the response
+    const responseBody = {
+      ...JSON.parse(body),
+      ISERROR: isError,
+      MESSAGE: isError ? message : undefined
+    };
+
+    // Call the original send method with the modified body
+    originalSend.call(this, JSON.stringify(responseBody));
+  };
+  
+  next();
+};
+app.use((err, req, res, next) => {
+  // Set error information in res.locals
+  res.locals.error = err;
+  next(); // Pass the error to the next middleware
+});
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api', routes);
+app.use(errorHandlingMiddleware);
 
 app.use((err, req, res, next) => {
   console.error("\x1b[31m", err);
