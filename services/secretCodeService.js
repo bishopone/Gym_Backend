@@ -75,16 +75,25 @@ const removeCardFromUser = async (userId, gymId) => {
 };
 
 
-const generateUniqueIds = (count) => {
-    const ids = new Set();
-  
-    while (ids.size < count) {
-      const id = crypto.randomBytes(10).toString('hex'); // Generates a 20-character hex string
-      ids.add(id);
-    }
-  
-    return Array.from(ids);
-  };
+const generateUniqueIds = (count, gymId) => {
+  const ids = new Set();
+  const gymIdStr = gymId.toString(); // Convert gymId to string
+  const gymIdLength = gymIdStr.length;
+  const randomIdLength = 20 - gymIdLength; // Calculate the length needed for the random part
+
+  if (randomIdLength <= 0) {
+    throw new Error("gymId is too long to generate a 20-character unique ID");
+  }
+
+  while (ids.size < count) {
+    const randomId = crypto.randomBytes(Math.ceil(randomIdLength / 2)).toString('hex').slice(0, randomIdLength); // Ensure the random ID is exactly the required length
+    const uniqueId = gymIdStr + randomId;
+    console.log(uniqueId)
+    ids.add(uniqueId);
+  }
+
+  return Array.from(ids);
+};
   
   module.exports = {
     assignCardToUser,

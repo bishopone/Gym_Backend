@@ -51,6 +51,7 @@ exports.getUserById = async (req, res) => {
     const users = await userService.getUserById(req.params.id);
     res.json(users);
   } catch (error) {
+    console.log(error)
     res.status(400).json({ message: error.message });
   }
 };

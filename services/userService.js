@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 const { createSubscriptionService } = require("./subscriptionService");
+const { upsertUserMetrics } = require("./userMetricsService");
 require("dotenv").config();
 
 const generateUniqueUsername = async (name) => {
@@ -42,10 +43,20 @@ const saveProfileImage = async (userId, file) => {
 };
 
 exports.registerUser = async (userData, file, user) => {
-  var { email, password, name, phoneNumber, gymId, role, subscription } =
-    userData;
+  var {
+    email,
+    password,
+    name,
+    phoneNumber,
+    gymId,
+    role,
+    subscription,
+    age,
+    sex,
+    weight,
+    height,
+  } = userData;
 
-  console.log(subscription);
   if (!gymId) {
     gymId = user.gymId;
   }
@@ -61,20 +72,21 @@ exports.registerUser = async (userData, file, user) => {
   }
   const hashedPassword = await bcrypt.hash(newpassword, 10);
 
-  
   const newUser = await prisma.user.upsert({
     where: {
-      phoneNumber
+      phoneNumber,
     },
     update: {
-      status: 'Active'
+      status: "Active",
     },
-    
+
     create: {
       email,
       password: hashedPassword,
       username,
       name,
+      age,
+      sex,
       phoneNumber,
       gymId: parseInt(gymId),
     },
@@ -109,6 +121,13 @@ exports.registerUser = async (userData, file, user) => {
     };
     await createSubscriptionService(data);
   }
+
+  if (age || sex || weight || height) {
+    console.log(age, sex, weight, height);
+    await upsertUserMetrics(newUser.id, height, weight);
+
+  }
+
   return newUser;
 };
 
@@ -144,28 +163,38 @@ exports.validateToken = async (token) => {
 };
 
 exports.updateUser = async (userId, userData, file) => {
-  const { email, oldPassword,
+  const {
+    email,
+    oldPassword,
     newPassword,
-    confirmPassword, name, phoneNumber, gymId, role, subscription } =
-    userData;
-    console.log("userData")
-    console.log(userData)
+    confirmPassword,
+    name,
+    phoneNumber,
+    gymId,
+    role,
+    age,
+    sex,
+    subscription,
+  } = userData;
+  console.log("userData");
+  console.log(userData);
   const data = {
     email,
     name,
     phoneNumber,
+    age,
+    sex,
   };
   if (gymId) {
     data.gymId = parseInt(gymId);
   }
   if (oldPassword) {
-    const user = await prisma.user.findUnique({ where: { id:userId } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (user && (await bcrypt.compare(oldPassword, user.password))) {
-      if(newPassword === confirmPassword){
+      if (newPassword === confirmPassword) {
         data.password = await bcrypt.hash(newPassword, 10);
       }
     }
-  
   }
   const newUser = await prisma.user.update({
     where: { id: userId },
@@ -199,7 +228,7 @@ exports.updateUser = async (userId, userData, file) => {
       userId: newUser.id,
       subscriptionTypeId: parseInt(subscription),
       startDate: currentDate.toISOString(), // Get the current date and time
-      gymId: gymId
+      gymId: gymId,
     };
     await createSubscriptionService(data);
   }
@@ -286,15 +315,20 @@ exports.getUserById = async (id) => {
       roles: { include: { role: { select: { roleName: true } } } },
       SecretCode: true,
       transactions: true,
-      subscriptions: {include:{
-        subscriptionType: { select: { id: true, name: true } }      }},
+      UserMetrics: true,
+      subscriptions: {
+        include: {
+          subscriptionType: { select: { id: true, name: true } },
+        },
+      },
     },
   });
-  
+  console.log(user)
   const formattedUsers = {
     ...user,
     SecretCode: user.SecretCode[0] ?? null,
-
+    height: user?.UserMetrics[0]?.height,
+    weight: user?.UserMetrics[0]?.weight,
     roleName: user.roles.length === 0 ? "" : user.roles[0].role.roleName,
     role: user.roles.length === 0 ? "" : user.roles[0].roleId,
     canDelete: user.transactions.length === 0,
@@ -310,7 +344,6 @@ exports.getUserById = async (id) => {
   } else {
     return { ...formattedUsers };
   }
-
 };
 
 exports.updateProfilePicture = async (userId, file) => {
@@ -340,9 +373,9 @@ exports.fuzzySearchUsers = async (query, roleid, gymId) => {
       roles: {
         some: {
           roleId: parseInt(roleid),
-        },  
+        },
       },
-      status: 'Active'
+      status: "Active",
     });
   }
 
@@ -386,7 +419,6 @@ exports.fuzzySearchUsers = async (query, roleid, gymId) => {
         },
         take: 1, // Limit to fetch the latest active subscription
       },
-      
     },
     where: whereClause,
   });
@@ -415,15 +447,15 @@ exports.deleteUserById = async (id) => {
         select: {
           transactions: {
             where: {
-              status: "Paid"
-            }
+              status: "Paid",
+            },
           },
-        }
+        },
       },
     },
   });
-  console.log("canDelete")
-  console.log(canDelete)
+  console.log("canDelete");
+  console.log(canDelete);
   if (canDelete._count.transactions === 0) {
     const user = await prisma.user.delete({
       where: {
@@ -432,63 +464,63 @@ exports.deleteUserById = async (id) => {
     });
     return user;
   }
- 
+
   const user = await prisma.user.update({
     where: {
       id: parseInt(id),
     },
     data: {
-      status: "Disabled"
-    }
+      status: "Disabled",
+    },
   });
   return user;
-};exports.getExpiredSubscriptions = async () => {
+};
+exports.getExpiredSubscriptions = async () => {
   const today = new Date();
 
   const users = await prisma.user.findMany({
     where: {
       roles: {
         some: {
-          roleId: 3
-        }
+          roleId: 3,
+        },
       },
       NOT: {
         subscriptions: {
           some: {
-            endDate: { gt: today }
-          }
-        }
+            endDate: { gt: today },
+          },
+        },
       },
       subscriptions: {
         some: {
-          endDate: { lt: today }
-        }
-      }
+          endDate: { lt: today },
+        },
+      },
     },
     include: {
       subscriptions: {
         where: {
-          endDate: { lt: today }
+          endDate: { lt: today },
         },
         include: {
-          subscriptionType: true
-        }
+          subscriptionType: true,
+        },
       },
       roles: {
         include: {
           role: {
             select: {
-              roleName: true
-            }
-          }
-        }
+              roleName: true,
+            },
+          },
+        },
       },
     },
   });
 
   return formatUsers(users);
 };
-
 
 exports.getUnsubscribedUsers = async () => {
   const today = new Date();
@@ -497,23 +529,23 @@ exports.getUnsubscribedUsers = async () => {
     where: {
       roles: {
         some: {
-          roleId: 3
-        }
+          roleId: 3,
+        },
       },
       NOT: {
         subscriptions: {
           some: {
             OR: [
               {
-                endDate: { gt: today }
+                endDate: { gt: today },
               },
               {
-                endDate: { lt: today }
-              }
-            ]
-          }
-        }
-      }
+                endDate: { lt: today },
+              },
+            ],
+          },
+        },
+      },
     },
     include: {
       subscriptions: true,
@@ -521,17 +553,16 @@ exports.getUnsubscribedUsers = async () => {
         include: {
           role: {
             select: {
-              roleName: true
-            }
-          }
-        }
-      }
-    }
+              roleName: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   return formatUsers(users);
 };
-
 
 exports.getExpiredToday = async () => {
   const today = new Date();

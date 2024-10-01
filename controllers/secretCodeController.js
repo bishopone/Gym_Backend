@@ -68,7 +68,7 @@ const generateUniqueIds = async (req, res) => {
   }
 
   try {
-    const ids = secretCodeService.generateUniqueIds(countNumber);
+    const ids = secretCodeService.generateUniqueIds(countNumber, req.user.gymId);
     res.status(200).json(ids);
   } catch (error) {
     console.log(error);

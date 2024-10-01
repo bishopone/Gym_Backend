@@ -31,6 +31,8 @@ model Gym {
 model User {
   id              Int                @id @default(autoincrement())
   email           String?
+  age             String?
+  sex             gender?
   password        String
   username        String             @unique
   name            String
@@ -45,6 +47,8 @@ model User {
   SecretCode      SecretCode[]
   transactions    Transaction[]
   gym             Gym?               @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  UserAttendance  UserAttendance[]
+  UserMetrics     UserMetrics[]
   roles           UserRole[]
   subscriptions   UserSubscription[]
 
@@ -254,6 +258,43 @@ model SecretCode {
   @@index([userid], map: "userid")
 }
 
+model UserAttendance {
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  attendanceDate DateTime  @db.Date
+  checkInTime    DateTime? @db.Time(0)
+  checkOutTime   DateTime? @db.Time(0)
+  User           User      @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "UserAttendance_ibfk_1")
+
+  @@index([userId], map: "userId")
+}
+
+model UserMetrics {
+  id                 Int                  @id @default(autoincrement())
+  userId             Int                  @unique
+  height             Decimal?             @db.Decimal(5, 2)
+  weight             Decimal?             @db.Decimal(5, 2)
+  bmi                Decimal?             @db.Decimal(5, 2)
+  createdAt          DateTime             @default(now()) @db.Timestamp(0)
+  updatedAt          DateTime             @default(now()) @db.Timestamp(0)
+  User               User                 @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "UserMetrics_ibfk_1")
+  UserMetricsHistory UserMetricsHistory[]
+
+  @@index([userId], map: "userId")
+}
+
+model UserMetricsHistory {
+  id            Int         @id @default(autoincrement())
+  userMetricsId Int
+  height        Decimal?    @db.Decimal(5, 2)
+  weight        Decimal?    @db.Decimal(5, 2)
+  bmi           Decimal?    @db.Decimal(5, 2)
+  changeDate    DateTime    @default(now()) @db.Timestamp(0)
+  UserMetrics   UserMetrics @relation(fields: [userMetricsId], references: [id], onUpdate: Restrict, map: "UserMetricsHistory_ibfk_1")
+
+  @@index([userMetricsId], map: "userMetricsId")
+}
+
 enum Gym_status {
   Demo
   Active
@@ -268,6 +309,11 @@ enum Subscription_status {
 enum User_status {
   Active
   Disabled
+}
+
+enum gender {
+  Male
+  Female
 }
 
 enum Transaction_Status {
